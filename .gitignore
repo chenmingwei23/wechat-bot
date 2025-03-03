@@ -1,0 +1,38 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local development settings
+.env
+.env.local
+config.local.py
+
+# Database files
+data/wechat_assistant.db
+*.db
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Wechaty token and other sensitive information
+token.json
+*_token.txt 

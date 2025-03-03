@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeChat Group Chat Assistant</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        .summary-card {
+            background-color: #f0f7ff;
+        }
+        .message-item {
+            border-bottom: 1px solid #e9ecef;
+            padding: 10px 0;
+        }
+        .message-sender {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .message-time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .message-content {
+            margin-top: 5px;
+        }
+        .keyword-badge {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        #status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #28a745;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="pb-3 mb-4 border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
+                    <span class="fs-4">WeChat Group Chat Assistant</span>
+                </a>
+                <div>
+                    <span id="status-indicator"></span>
+                    <span id="status-text">Connected</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <div class="row">
+            <!-- Stats -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        System Status
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <div class="d-flex flex-column">
+                                    <span class="text-muted">Groups</span>
+                                    <span class="fs-4" id="group-count">0</span>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="d-flex flex-column">
+                                    <span class="text-muted">Users</span>
+                                    <span class="fs-4" id="user-count">0</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex flex-column">
+                                    <span class="text-muted">Messages</span>
+                                    <span class="fs-4" id="message-count">0</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex flex-column">
+                                    <span class="text-muted">Summaries</span>
+                                    <span class="fs-4" id="summary-count">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        Groups
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="group-list">
+                            <a href="#" class="list-group-item list-group-item-action" data-room-id="all">All Groups</a>
+                            <!-- Group list will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="col-md-8">
+                <div class="card summary-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Latest Summary</span>
+                        <select class="form-select form-select-sm" style="width: auto;" id="summary-selector">
+                            <option value="latest">Latest</option>
+                            <!-- Summary options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <h5 id="summary-title">No summaries available</h5>
+                        <div class="text-muted small mb-3" id="summary-time"></div>
+                        <div id="summary-content"></div>
+                        <div class="mt-3">
+                            <h6>Keywords:</h6>
+                            <div id="summary-keywords">
+                                <!-- Keywords will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Recent Messages</span>
+                        <select class="form-select form-select-sm" style="width: auto;" id="message-limit">
+                            <option value="10">10 messages</option>
+                            <option value="20" selected>20 messages</option>
+                            <option value="50">50 messages</option>
+                            <option value="100">100 messages</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div id="message-list">
+                            <!-- Messages will be populated by JavaScript -->
+                            <div class="text-center text-muted">No messages available</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let currentRoomId = 'all';
+        let currentSummaryId = null;
+        let refreshInterval = null;
+        
+        // DOM ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch initial data
+            fetchStatus();
+            fetchRooms();
+            fetchSummaries();
+            fetchMessages();
+            
+            // Set up event listeners
+            document.getElementById('group-list').addEventListener('click', handleGroupSelect);
+            document.getElementById('summary-selector').addEventListener('change', handleSummarySelect);
+            document.getElementById('message-limit').addEventListener('change', fetchMessages);
+            
+            // Set up refresh interval (every 30 seconds)
+            refreshInterval = setInterval(function() {
+                fetchStatus();
+                fetchMessages();
+                fetchSummaries();
+            }, 30000);
+        });
+        
+        // Fetch system status
+        function fetchStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stats = data.data;
+                        document.getElementById('group-count').textContent = stats.room_count;
+                        document.getElementById('user-count').textContent = stats.user_count;
+                        document.getElementById('message-count').textContent = stats.message_count;
+                        document.getElementById('summary-count').textContent = stats.summary_count;
+                        
+                        // Update status indicator
+                        const statusIndicator = document.getElementById('status-indicator');
+                        const statusText = document.getElementById('status-text');
+                        
+                        if (stats.status === 'running') {
+                            statusIndicator.style.backgroundColor = '#28a745';
+                            statusText.textContent = 'Connected';
+                        } else {
+                            statusIndicator.style.backgroundColor = '#dc3545';
+                            statusText.textContent = 'Disconnected';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                    const statusIndicator = document.getElementById('status-indicator');
+                    const statusText = document.getElementById('status-text');
+                    statusIndicator.style.backgroundColor = '#dc3545';
+                    statusText.textContent = 'Error';
+                });
+        }
+        
+        // Fetch rooms/groups
+        function fetchRooms() {
+            fetch('/api/rooms')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data.length > 0) {
+                        const groupList = document.getElementById('group-list');
+                        const currentGroups = groupList.querySelectorAll('[data-room-id]');
+                        
+                        // Keep the "All Groups" option and remove others
+                        for (let i = 1; i < currentGroups.length; i++) {
+                            groupList.removeChild(currentGroups[i]);
+                        }
+                        
+                        // Add rooms to the list
+                        data.data.forEach(room => {
+                            const roomItem = document.createElement('a');
+                            roomItem.href = '#';
+                            roomItem.className = 'list-group-item list-group-item-action';
+                            roomItem.setAttribute('data-room-id', room.id);
+                            roomItem.textContent = room.topic;
+                            groupList.appendChild(roomItem);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error fetching rooms:', error));
+        }
+        
+        // Fetch message summaries
+        function fetchSummaries() {
+            let url = '/api/summaries';
+            if (currentRoomId !== 'all') {
+                url += `?room_id=${currentRoomId}`;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const summaries = data.data;
+                        const summarySelector = document.getElementById('summary-selector');
+                        
+                        // Clear existing options except the first one
+                        while (summarySelector.options.length > 1) {
+                            summarySelector.remove(1);
+                        }
+                        
+                        if (summaries.length > 0) {
+                            // Add summaries to the selector
+                            summaries.forEach((summary, index) => {
+                                const option = document.createElement('option');
+                                option.value = summary.id;
+                                const date = new Date(summary.created_at);
+                                option.textContent = `${summary.room_topic} - ${date.toLocaleString()}`;
+                                summarySelector.appendChild(option);
+                            });
+                            
+                            // Display the first summary
+                            displaySummary(summaries[0]);
+                        } else {
+                            // No summaries available
+                            document.getElementById('summary-title').textContent = 'No summaries available';
+                            document.getElementById('summary-time').textContent = '';
+                            document.getElementById('summary-content').textContent = '';
+                            document.getElementById('summary-keywords').innerHTML = '';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching summaries:', error));
+        }
+        
+        // Display a summary
+        function displaySummary(summary) {
+            document.getElementById('summary-title').textContent = summary.room_topic;
+            
+            const startTime = new Date(summary.start_time);
+            const endTime = new Date(summary.end_time);
+            document.getElementById('summary-time').textContent = 
+                `${startTime.toLocaleString()} to ${endTime.toLocaleString()}`;
+            
+            // Format and display the summary content
+            const summaryContent = document.getElementById('summary-content');
+            summaryContent.innerHTML = summary.summary.replace(/\n/g, '<br>');
+            
+            // Display keywords (simulated since we don't store them separately)
+            const keywords = extractKeywordsFromSummary(summary.summary);
+            const keywordsContainer = document.getElementById('summary-keywords');
+            keywordsContainer.innerHTML = '';
+            
+            keywords.forEach(keyword => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary keyword-badge';
+                badge.textContent = keyword;
+                keywordsContainer.appendChild(badge);
+            });
+            
+            currentSummaryId = summary.id;
+        }
+        
+        // Extract keywords from summary (simple implementation)
+        function extractKeywordsFromSummary(summary) {
+            // This is a simplified way to extract "keywords" from the summary
+            // In a real implementation, you would use the keywords from your AI service
+            const words = summary.split(/\s+/);
+            const keywords = new Set();
+            const stopWords = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'of']);
+            
+            words.forEach(word => {
+                word = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (word.length > 5 && !stopWords.has(word) && !keywords.has(word)) {
+                    keywords.add(word);
+                }
+            });
+            
+            return [...keywords].slice(0, 10);
+        }
+        
+        // Fetch messages
+        function fetchMessages() {
+            const limit = document.getElementById('message-limit').value;
+            let url = `/api/messages?limit=${limit}`;
+            
+            if (currentRoomId !== 'all') {
+                url += `&room_id=${currentRoomId}`;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const messages = data.data;
+                        const messageList = document.getElementById('message-list');
+                        
+                        if (messages.length > 0) {
+                            messageList.innerHTML = '';
+                            
+                            messages.forEach(message => {
+                                const messageItem = document.createElement('div');
+                                messageItem.className = 'message-item';
+                                
+                                const header = document.createElement('div');
+                                header.className = 'd-flex justify-content-between';
+                                
+                                const sender = document.createElement('span');
+                                sender.className = 'message-sender';
+                                sender.textContent = message.user_name;
+                                
+                                const time = document.createElement('span');
+                                time.className = 'message-time';
+                                time.textContent = new Date(message.created_at).toLocaleString();
+                                
+                                header.appendChild(sender);
+                                header.appendChild(time);
+                                
+                                const content = document.createElement('div');
+                                content.className = 'message-content';
+                                content.textContent = message.content;
+                                
+                                messageItem.appendChild(header);
+                                messageItem.appendChild(content);
+                                messageList.appendChild(messageItem);
+                            });
+                        } else {
+                            messageList.innerHTML = '<div class="text-center text-muted">No messages available</div>';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching messages:', error));
+        }
+        
+        // Handle group selection
+        function handleGroupSelect(event) {
+            event.preventDefault();
+            
+            if (event.target.tagName === 'A' && event.target.hasAttribute('data-room-id')) {
+                // Deselect current group
+                const currentActive = document.querySelector('#group-list .active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+                
+                // Select new group
+                event.target.classList.add('active');
+                currentRoomId = event.target.getAttribute('data-room-id');
+                
+                // Fetch data for selected group
+                fetchSummaries();
+                fetchMessages();
+            }
+        }
+        
+        // Handle summary selection
+        function handleSummarySelect(event) {
+            const summaryId = event.target.value;
+            
+            if (summaryId === 'latest') {
+                // Fetch latest summaries
+                fetchSummaries();
+            } else {
+                // Fetch specific summary
+                fetch(`/api/summaries?id=${summaryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.data.length > 0) {
+                            displaySummary(data.data[0]);
+                        }
+                    })
+                    .catch(error => console.error('Error fetching summary:', error));
+            }
+        }
+    </script>
+</body>
+</html> 

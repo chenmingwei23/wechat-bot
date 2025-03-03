@@ -1,0 +1,5 @@
+wechaty==0.10.7
+# wechaty-puppet-wechat>=0.4.0  # Not available, using service instead
+wechaty-puppet-service>=0.8.0
+qrcode==7.3.1
+pillow>=9.0.0 
